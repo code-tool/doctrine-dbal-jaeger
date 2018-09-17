@@ -121,7 +121,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::query();
+            return parent::query(...func_get_args());
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
