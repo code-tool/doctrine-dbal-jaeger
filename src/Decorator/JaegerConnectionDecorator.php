@@ -28,6 +28,9 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
 
     public function connect()
     {
+        if ($this->isConnected()) {
+            return;
+        }
         $span = $this->tracer
             ->start('dbal.connect')
             ->addTag(new DbInstanceTag($this->getDatabase()))
