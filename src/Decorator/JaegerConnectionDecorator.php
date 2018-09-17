@@ -32,7 +32,6 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.connect')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
@@ -42,7 +41,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $this->tracer->finish($span->addTag(new DbType($this->getDatabasePlatform()->getName())));
         }
     }
 
