@@ -1,5 +1,6 @@
 {
   "name": "code-tool/doctrine-dbal-jaeger",
+  "license": "MIT",
   "require": {
     "php": "^7.2",
     "doctrine/dbal": "^2.8",
