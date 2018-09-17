@@ -5,6 +5,7 @@ namespace Doctrine\DBAL\Jaeger\Decorator;
 
 use Doctrine\DBAL\Cache\QueryCacheProfile;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Jaeger\Tag\DbalAutoCommitTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalRowNumberTag;
 use Jaeger\Tag\DbInstanceTag;
@@ -30,7 +31,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.connect')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             parent::connect();
         } catch (\Exception $e) {
@@ -49,6 +51,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($prepareString));
         try {
             return parent::prepare($prepareString);
@@ -68,6 +71,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($query));
         try {
             return parent::executeQuery($query, $params, $types, $qcp);
@@ -87,6 +91,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($query));
         try {
             return parent::executeUpdate($query, $params, $types);
@@ -105,7 +110,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.query')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             return parent::query();
         } catch (\Exception $e) {
@@ -123,7 +129,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.exec')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             $rows = parent::exec($statement);
             $span->addTag(new DbalRowNumberTag($rows));
@@ -144,7 +151,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.transaction')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             parent::beginTransaction();
         } catch (\Exception $e) {
@@ -162,7 +170,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.commit')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             parent::commit();
         } catch (\Exception $e) {
@@ -180,7 +189,8 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.rollback')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             return parent::rollBack();
         } catch (\Exception $e) {
