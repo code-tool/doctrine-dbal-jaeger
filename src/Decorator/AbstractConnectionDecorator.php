@@ -16,6 +16,12 @@ abstract class AbstractConnectionDecorator extends Connection
     public function __construct(Connection $connection)
     {
         $this->connection = $connection;
+        parent::__construct(
+            $connection->getParams(),
+            $connection->getDriver(),
+            $connection->getConfiguration(),
+            $connection->getEventManager()
+        );
     }
 
     public function prepare($prepareString)
