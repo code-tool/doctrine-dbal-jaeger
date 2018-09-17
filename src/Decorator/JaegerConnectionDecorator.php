@@ -18,11 +18,29 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
 {
     private $tracer;
 
-   public function __construct(Connection $connection, TracerInterface $tracer)
-   {
-       $this->tracer = $tracer;
-       parent::__construct($connection);
-   }
+    public function __construct(Connection $connection, TracerInterface $tracer)
+    {
+        $this->tracer = $tracer;
+        parent::__construct($connection);
+    }
+
+    public function connect()
+    {
+        $span = $this->tracer
+            ->start('dbal.connect')
+            ->addTag(new DbInstanceTag($this->getDatabase()))
+            ->addTag(new DbUser($this->getUsername()))
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
+        try {
+            parent::connect();
+        } catch (\Exception $e) {
+            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+                ->addTag(new ErrorTag());
+            throw $e;
+        } finally {
+            $this->tracer->finish($span);
+        }
+    }
 
     public function prepare($prepareString)
     {
@@ -30,7 +48,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.prepare')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'))
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbStatementTag($prepareString));
         try {
             return parent::prepare($prepareString);
@@ -49,7 +67,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.execute')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'))
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbStatementTag($query));
         try {
             return parent::executeQuery($query, $params, $types, $qcp);
@@ -68,7 +86,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.execute')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'))
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbStatementTag($query));
         try {
             return parent::executeUpdate($query, $params, $types);
@@ -81,15 +99,13 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         }
     }
 
-
-
     public function query()
     {
         $span = $this->tracer
             ->start('dbal.query')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
         try {
             return parent::query();
         } catch (\Exception $e) {
@@ -107,7 +123,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.exec')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
         try {
             $rows = parent::exec($statement);
             $span->addTag(new DbalRowNumberTag($rows));
@@ -128,7 +144,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.transaction')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
         try {
             parent::beginTransaction();
         } catch (\Exception $e) {
@@ -146,7 +162,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.commit')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
         try {
             parent::commit();
         } catch (\Exception $e) {
@@ -164,7 +180,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->start('dbal.rollback')
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType('sql'));
+            ->addTag(new DbType($this->getDatabasePlatform()->getName()));
         try {
             return parent::rollBack();
         } catch (\Exception $e) {
