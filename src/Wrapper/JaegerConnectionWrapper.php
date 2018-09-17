@@ -1,10 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace Doctrine\DBAL\Jaeger\Decorator;
+namespace Doctrine\DBAL\Jaeger\Wrapper;
 
+use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Cache\QueryCacheProfile;
+use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalRowNumberTag;
 use Jaeger\Tag\DbInstanceTag;
@@ -14,15 +17,21 @@ use Jaeger\Tag\DbUser;
 use Jaeger\Tag\ErrorTag;
 use Jaeger\Tracer\TracerInterface;
 
-class JaegerConnectionDecorator extends AbstractConnectionDecorator
+class JaegerConnectionWrapper extends Connection
 {
     private $tracer;
 
-   public function __construct(Connection $connection, TracerInterface $tracer)
-   {
-       $this->tracer = $tracer;
-       parent::__construct($connection);
-   }
+    public function __construct(
+        TracerInterface $tracer,
+        array $params,
+        Driver $driver,
+        Configuration $config = null,
+        EventManager $eventManager = null
+
+    ) {
+        $this->tracer = $tracer;
+        parent::__construct($params, $driver, $config, $eventManager);
+    }
 
     public function prepare($prepareString)
     {
