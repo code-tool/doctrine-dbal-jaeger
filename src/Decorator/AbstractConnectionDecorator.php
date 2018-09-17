@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 namespace Doctrine\DBAL\Jaeger\Decorator;
 
-use Doctrine\DBAL\Driver\Connection as DriverConnection;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 
-class AbstractConnectionDecorator implements DriverConnection
+abstract class AbstractConnectionDecorator extends Connection
 {
     private $connection;
 
-    public function __construct(DriverConnection $connection)
+    public function __construct(Connection $connection)
     {
         $this->connection = $connection;
     }
@@ -42,12 +42,12 @@ class AbstractConnectionDecorator implements DriverConnection
 
     public function beginTransaction()
     {
-        return $this->connection->beginTransaction();
+        $this->connection->beginTransaction();
     }
 
     public function commit()
     {
-        return $this->connection->commit();
+        $this->connection->commit();
     }
 
     public function rollBack()
