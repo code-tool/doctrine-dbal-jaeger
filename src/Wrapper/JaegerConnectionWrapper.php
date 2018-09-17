@@ -117,15 +117,17 @@ class JaegerConnectionWrapper extends Connection
 
     public function query()
     {
+        $args = func_get_args();
         $span = $this->tracer
             ->start('dbal.query')
+            ->addTag(new DbStatementTag($args[0]))
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::query();
+            return parent::query(...$args);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
