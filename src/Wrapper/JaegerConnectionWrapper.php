@@ -3,11 +3,8 @@ declare(strict_types=1);
 
 namespace Doctrine\DBAL\Jaeger\Wrapper;
 
-use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Cache\QueryCacheProfile;
-use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalRowNumberTag;
 use Jaeger\Tag\DbInstanceTag;
@@ -19,18 +16,16 @@ use Jaeger\Tracer\TracerInterface;
 
 class JaegerConnectionWrapper extends Connection
 {
+    /**
+     * @var TracerInterface $tracer
+     */
     private $tracer;
 
-    public function __construct(
-        TracerInterface $tracer,
-        array $params,
-        Driver $driver,
-        Configuration $config = null,
-        EventManager $eventManager = null
-
-    ) {
+    public function setTracer(TracerInterface $tracer)
+    {
         $this->tracer = $tracer;
-        parent::__construct($params, $driver, $config, $eventManager);
+
+        return $this;
     }
 
     public function prepare($prepareString)
@@ -89,8 +84,6 @@ class JaegerConnectionWrapper extends Connection
             $this->tracer->finish($span);
         }
     }
-
-
 
     public function query()
     {
