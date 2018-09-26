@@ -48,7 +48,10 @@ class JaegerConnectionWrapper extends Connection
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span->addTag(new DbType($this->getDatabasePlatform()->getName())));
+            if ($this->isConnected()) {
+                $span->addTag(new DbType($this->getDatabasePlatform()->getName()));
+            }
+            $this->tracer->finish($span);
         }
     }
 
