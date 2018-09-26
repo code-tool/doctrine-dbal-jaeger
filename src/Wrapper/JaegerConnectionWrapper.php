@@ -35,12 +35,7 @@ class JaegerConnectionWrapper extends Connection
         if ($this->isConnected()) {
             return;
         }
-        $span = $this->tracer
-            ->start('dbal.connect')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
+        $span = $this->tracer->start('dbal.connect');
         try {
             parent::connect();
         } catch (\Exception $e) {
@@ -49,7 +44,11 @@ class JaegerConnectionWrapper extends Connection
             throw $e;
         } finally {
             if ($this->isConnected()) {
-                $span->addTag(new DbType($this->getDatabasePlatform()->getName()));
+                $span->addTag(new DbInstanceTag($this->getDatabase()))
+                    ->addTag(new DbUser($this->getUsername()))
+                    ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
+                    ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))
+                    ->addTag(new DbType($this->getDatabasePlatform()->getName()));
             }
             $this->tracer->finish($span);
         }
