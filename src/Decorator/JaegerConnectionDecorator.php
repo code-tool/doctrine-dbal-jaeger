@@ -26,10 +26,10 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         parent::__construct($connection);
     }
 
-    public function connect()
+    public function connect(): bool
     {
         if ($this->isConnected()) {
-            return;
+            return false;
         }
         $span = $this->tracer
             ->start('dbal.connect')
@@ -38,7 +38,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            parent::connect();
+            return parent::connect();
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
