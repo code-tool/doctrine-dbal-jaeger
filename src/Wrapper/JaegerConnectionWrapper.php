@@ -33,11 +33,11 @@ class JaegerConnectionWrapper extends Connection
     public function connect()
     {
         if ($this->isConnected()) {
-            return;
+            return false;
         }
         $span = $this->tracer->start('dbal.connect');
         try {
-            parent::connect();
+            return parent::connect();
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
