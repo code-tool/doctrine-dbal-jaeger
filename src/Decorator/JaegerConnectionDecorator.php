@@ -26,10 +26,10 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         parent::__construct($connection);
     }
 
-    public function connect()
+    public function connect(): bool
     {
         if ($this->isConnected()) {
-            return;
+            return false;
         }
         $span = $this->tracer
             ->start('dbal.connect')
@@ -38,13 +38,13 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            parent::connect();
+            return parent::connect();
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span->addTag(new DbType($this->getDatabasePlatform()->getName())));
+            $span->addTag(new DbType($this->getDatabasePlatform()->getName()))->finish();
         }
     }
 
@@ -65,7 +65,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $span->finish();
         }
     }
 
@@ -86,7 +86,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $span->finish();
         }
     }
 
@@ -107,27 +107,29 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $span->finish();
         }
     }
 
     public function query()
     {
+        $args = func_get_args();
         $span = $this->tracer
             ->start('dbal.query')
+            ->addTag(new DbStatementTag($args[0]))
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::query();
+            return parent::query(...$args);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $span->finish();
         }
     }
 
@@ -150,7 +152,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span);
+            $span->finish();
         }
     }
 
@@ -169,7 +171,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))->finish();
         }
     }
 
@@ -188,7 +190,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))->finish();
         }
     }
 
@@ -207,7 +209,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))->finish();
         }
     }
 }
