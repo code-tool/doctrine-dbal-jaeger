@@ -65,7 +65,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbStatementTag($prepareString))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::prepare($prepareString);
+            return $this->wrappedPrepare($prepareString);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -73,6 +73,20 @@ class JaegerConnectionWrapper extends Connection
         } finally {
             $this->tracer->finish($span);
         }
+    }
+
+    private function wrappedPrepare($sql)
+    {
+        try {
+            $stmt = new JaegerStatementWrapper($sql, $this);
+        } catch (\Throwable $e) {
+            $this->handleExceptionDuringQuery($e, $sql);
+        }
+
+        $stmt->setFetchMode($this->defaultFetchMode);
+        $stmt->setTracer($this->tracer);
+
+        return $stmt;
     }
 
     public function executeQuery($query, array $params = [], $types = [], QueryCacheProfile $qcp = null)
