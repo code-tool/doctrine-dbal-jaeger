@@ -23,9 +23,21 @@ class JaegerConnectionWrapper extends Connection
      */
     private $tracer;
 
+    /**
+     * @var int|null
+     */
+    private $maxSqlLength;
+
     public function setTracer(TracerInterface $tracer)
     {
         $this->tracer = $tracer;
+
+        return $this;
+    }
+
+    public function setMaxSqlLength(?int $maxSqlLength)
+    {
+        $this->maxSqlLength = $maxSqlLength;
 
         return $this;
     }
@@ -85,6 +97,7 @@ class JaegerConnectionWrapper extends Connection
 
         $stmt->setFetchMode($this->defaultFetchMode);
         $stmt->setTracer($this->tracer);
+        $stmt->setMaxSqlLength($this->maxSqlLength);
 
         return $stmt;
     }
@@ -235,6 +248,10 @@ class JaegerConnectionWrapper extends Connection
 
     private function cutLongSql(string $string): string
     {
-        return substr($string, 0, 200);
+        if (null === $this->maxSqlLength) {
+            return $string;
+        }
+
+        return substr($string, 0, $this->maxSqlLength);
     }
 }

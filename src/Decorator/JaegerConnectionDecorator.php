@@ -20,9 +20,15 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
 {
     private $tracer;
 
-    public function __construct(Connection $connection, TracerInterface $tracer)
+    /**
+     * @var int|null
+     */
+    private $maxSqlLength;
+
+    public function __construct(Connection $connection, TracerInterface $tracer, ?int $maxSqlLength = null)
     {
         $this->tracer = $tracer;
+        $this->maxSqlLength = $maxSqlLength;
         parent::__construct($connection);
     }
 
@@ -215,6 +221,10 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
 
     private function cutLongSql(string $string): string
     {
-        return substr($string, 0, 200);
+        if (null === $this->maxSqlLength) {
+            return $string;
+        }
+
+        return substr($string, 0, $this->maxSqlLength);
     }
 }

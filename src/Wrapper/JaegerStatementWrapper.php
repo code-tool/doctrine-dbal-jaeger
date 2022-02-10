@@ -16,9 +16,21 @@ class JaegerStatementWrapper extends Statement
      */
     private $tracer;
 
+    /**
+     * @var int|null
+     */
+    private $maxSqlLength;
+
     public function setTracer(TracerInterface $tracer)
     {
         $this->tracer = $tracer;
+
+        return $this;
+    }
+
+    public function setMaxSqlLength(?int $maxSqlLength)
+    {
+        $this->maxSqlLength = $maxSqlLength;
 
         return $this;
     }
@@ -43,6 +55,10 @@ class JaegerStatementWrapper extends Statement
 
     private function cutLongSql(string $string): string
     {
-        return substr($string, 0, 200);
+        if (null === $this->maxSqlLength) {
+            return $string;
+        }
+
+        return substr($string, 0, $this->maxSqlLength);
     }
 }
