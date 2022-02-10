@@ -27,7 +27,7 @@ class JaegerStatementWrapper extends Statement
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')
-            ->addTag(new DbStatementTag($this->sql));
+            ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
 
         try {
             return parent::execute($params);
@@ -39,5 +39,10 @@ class JaegerStatementWrapper extends Statement
         } finally {
             $this->tracer->finish($span);
         }
+    }
+
+    private function cutLongSql(string $string): string
+    {
+        return substr($string, 0, 200);
     }
 }
