@@ -26,7 +26,7 @@ class JaegerConnectionWrapper extends Connection
     /**
      * @var int|null
      */
-    private $maxSqlLength;
+    private $maxSqlLength = null;
 
     public function setTracer(TracerInterface $tracer)
     {
