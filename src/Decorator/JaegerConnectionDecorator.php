@@ -56,7 +56,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($prepareString))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($prepareString)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::prepare($prepareString);
@@ -77,7 +77,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeQuery($query, $params, $types, $qcp);
@@ -98,7 +98,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeUpdate($query, $params, $types);
@@ -211,5 +211,10 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         } finally {
             $span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))->finish();
         }
+    }
+
+    private function cutLongSqlString($sql)
+    {
+        return \substr($sql, 0, 200);
     }
 }

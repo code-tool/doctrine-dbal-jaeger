@@ -62,7 +62,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($prepareString))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($prepareString)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return $this->wrappedPrepare($prepareString);
@@ -97,7 +97,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeQuery($query, $params, $types, $qcp);
@@ -118,7 +118,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSqlString($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeUpdate($query, $params, $types);
@@ -231,5 +231,10 @@ class JaegerConnectionWrapper extends Connection
         } finally {
             $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
         }
+    }
+
+    private function cutLongSqlString($sql)
+    {
+        return \substr($sql, 0, 200);
     }
 }
