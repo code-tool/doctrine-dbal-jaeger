@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Doctrine\DBAL\Jaeger\Wrapper;
 
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
+use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Statement;
 use Jaeger\Tag\DbStatementTag;
 use Jaeger\Tag\ErrorTag;
@@ -35,7 +36,7 @@ class JaegerStatementWrapper extends Statement
         return $this;
     }
 
-    public function execute($params = null)
+    public function execute($params = null): Result
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')

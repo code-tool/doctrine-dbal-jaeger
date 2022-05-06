@@ -8,6 +8,8 @@ use Doctrine\DBAL\Cache\QueryCacheProfile;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Statement;
 
 abstract class AbstractConnectionDecorator extends Connection
 {
@@ -24,24 +26,24 @@ abstract class AbstractConnectionDecorator extends Connection
         );
     }
 
-    public function prepare($prepareString)
+    public function prepare(string $sql): Statement
     {
-        return $this->connection->prepare($prepareString);
+        return $this->connection->prepare($sql);
     }
 
-    public function query()
+    public function query(string $sql): Result
     {
-        return $this->connection->query();
+        return $this->connection->query($sql);
     }
 
-    public function quote($input, $type = ParameterType::STRING)
+    public function quote($value, $type = ParameterType::STRING)
     {
-        return $this->connection->quote($input, $type);
+        return $this->connection->quote($value, $type);
     }
 
-    public function exec($statement)
+    public function exec(string $sql): int
     {
-        return $this->connection->exec($statement);
+        return $this->connection->exec($sql);
     }
 
     public function lastInsertId($name = null)
@@ -49,17 +51,17 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->lastInsertId($name);
     }
 
-    public function beginTransaction()
+    public function beginTransaction(): bool
     {
-        $this->connection->beginTransaction();
+        return $this->connection->beginTransaction();
     }
 
-    public function commit()
+    public function commit(): bool
     {
-        $this->connection->commit();
+        return $this->connection->commit();
     }
 
-    public function rollBack()
+    public function rollBack(): bool
     {
         return $this->connection->rollBack();
     }
@@ -129,7 +131,7 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->getExpressionBuilder();
     }
 
-    public function connect()
+    public function connect(): bool
     {
         return $this->connection->connect();
     }
@@ -214,9 +216,9 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->fetchAll($sql, $params, $types);
     }
 
-    public function executeQuery($query, array $params = [], $types = [], QueryCacheProfile $qcp = null)
+    public function executeQuery(string $sql, array $params = [], $types = [], QueryCacheProfile $qcp = null): Result
     {
-        return $this->connection->executeQuery($query, $params, $types, $qcp);
+        return $this->connection->executeQuery($sql, $params, $types, $qcp);
     }
 
     public function executeCacheQuery($query, $params, $types, QueryCacheProfile $qcp)
@@ -229,9 +231,9 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->project($query, $params, $function);
     }
 
-    public function executeUpdate($query, array $params = [], array $types = [])
+    public function executeUpdate(string $sql, array $params = [], array $types = []): int
     {
-        return $this->connection->executeUpdate($query, $params, $types);
+        return $this->connection->executeUpdate($sql, $params, $types);
     }
 
     public function getTransactionNestingLevel()

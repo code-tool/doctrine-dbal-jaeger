@@ -9,6 +9,8 @@ use Doctrine\DBAL\Jaeger\Tag\DbalAutoCommitTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalNestingLevelTag;
 use Doctrine\DBAL\Jaeger\Tag\DbalRowNumberTag;
+use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Statement;
 use Jaeger\Tag\DbInstanceTag;
 use Jaeger\Tag\DbStatementTag;
 use Jaeger\Tag\DbType;
@@ -42,7 +44,7 @@ class JaegerConnectionWrapper extends Connection
         return $this;
     }
 
-    public function connect()
+    public function connect(): bool
     {
         if ($this->isConnected()) {
             return false;
@@ -66,7 +68,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function prepare($prepareString)
+    public function prepare($prepareString): Statement
     {
         $span = $this->tracer
             ->start('dbal.prepare')
@@ -102,7 +104,7 @@ class JaegerConnectionWrapper extends Connection
         return $stmt;
     }
 
-    public function executeQuery($query, array $params = [], $types = [], QueryCacheProfile $qcp = null)
+    public function executeQuery(string $sql, array $params = [], $types = [], ?QueryCacheProfile $qcp = null): Result
     {
         $span = $this->tracer
             ->start('dbal.execute')
@@ -110,10 +112,10 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($this->cutLongSql($query)))
+            ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::executeQuery($query, $params, $types, $qcp);
+            return parent::executeQuery($sql, $params, $types, $qcp);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -123,7 +125,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function executeUpdate($query, array $params = [], array $types = [])
+    public function executeUpdate(string $sql, array $params = [], array $types = []): int
     {
         $span = $this->tracer
             ->start('dbal.execute')
@@ -131,10 +133,10 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($this->cutLongSql($query)))
+            ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::executeUpdate($query, $params, $types);
+            return parent::executeUpdate($sql, $params, $types);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -144,19 +146,18 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function query()
+    public function query(string $sql): Result
     {
-        $args = func_get_args();
         $span = $this->tracer
             ->start('dbal.query')
-            ->addTag(new DbStatementTag($this->cutLongSql($args[0])))
+            ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::query(...$args);
+            return parent::query($sql);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -166,7 +167,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function exec($statement)
+    public function exec(string $sql): int
     {
         $span = $this->tracer
             ->start('dbal.exec')
@@ -176,7 +177,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            $rows = parent::exec($statement);
+            $rows = parent::exec($sql);
             $span->addTag(new DbalRowNumberTag($rows));
 
             return $rows;
@@ -189,7 +190,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function beginTransaction()
+    public function beginTransaction(): bool
     {
         $span = $this->tracer
             ->start('dbal.transaction')
@@ -198,7 +199,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
-            parent::beginTransaction();
+            return parent::beginTransaction();
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -208,7 +209,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function commit()
+    public function commit(): bool
     {
         $span = $this->tracer
             ->start('dbal.commit')
@@ -217,7 +218,7 @@ class JaegerConnectionWrapper extends Connection
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
-            parent::commit();
+            return parent::commit();
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
@@ -227,7 +228,7 @@ class JaegerConnectionWrapper extends Connection
         }
     }
 
-    public function rollBack()
+    public function rollBack(): bool
     {
         $span = $this->tracer
             ->start('dbal.rollback')
