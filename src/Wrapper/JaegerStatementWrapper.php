@@ -43,7 +43,7 @@ class JaegerStatementWrapper extends Statement
             ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
 
         try {
-            return parent::execute($params);
+            return parent::executeQuery($params);
         } catch (\Exception $e) {
             $span
                 ->addTag(new DbalErrorCodeTag($e->getCode()))
@@ -62,7 +62,7 @@ class JaegerStatementWrapper extends Statement
             ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
 
         try {
-            return parent::execute($params);
+            return parent::executeStatement($params);
         } catch (\Exception $e) {
             $span
                 ->addTag(new DbalErrorCodeTag($e->getCode()))
