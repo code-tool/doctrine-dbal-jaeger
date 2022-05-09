@@ -4,12 +4,21 @@ declare(strict_types=1);
 namespace Doctrine\DBAL\Jaeger\Decorator;
 
 use Closure;
+use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Cache\QueryCacheProfile;
+use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver;
+use Doctrine\DBAL\Driver\Connection as DriverConnection;
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Statement;
+use Doctrine\DBAL\Types\Type;
 
 abstract class AbstractConnectionDecorator extends Connection
 {
@@ -66,69 +75,44 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->rollBack();
     }
 
-    public function errorCode()
-    {
-        return $this->connection->errorCode();
-    }
-
-    public function errorInfo()
-    {
-        return $this->connection->errorInfo();
-    }
-
-    public function getParams()
+    public function getParams(): array
     {
         return $this->connection->getParams();
     }
 
-    public function getDatabase()
+    public function getDatabase(): ?string
     {
         return $this->connection->getDatabase();
     }
 
-    public function getHost()
-    {
-        return $this->connection->getHost();
-    }
-
-    public function getPort()
-    {
-        return $this->connection->getPort();
-    }
-
-    public function getUsername()
-    {
-        return $this->connection->getUsername();
-    }
-
-    public function getPassword()
-    {
-        return $this->connection->getPassword();
-    }
-
-    public function getDriver()
+    public function getDriver(): Driver
     {
         return $this->connection->getDriver();
     }
 
-    public function getConfiguration()
+    public function getConfiguration(): Configuration
     {
         return $this->connection->getConfiguration();
     }
 
-    public function getEventManager()
+    public function getEventManager(): EventManager
     {
         return $this->connection->getEventManager();
     }
 
-    public function getDatabasePlatform()
+    public function getDatabasePlatform(): AbstractPlatform
     {
         return $this->connection->getDatabasePlatform();
     }
 
-    public function getExpressionBuilder()
+    public function getExpressionBuilder(): ExpressionBuilder
     {
         return $this->connection->getExpressionBuilder();
+    }
+
+    public function createExpressionBuilder(): ExpressionBuilder
+    {
+        return $this->connection->createExpressionBuilder();
     }
 
     public function connect(): bool
@@ -136,52 +120,97 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->connect();
     }
 
-    public function isAutoCommit()
+    public function isAutoCommit(): bool
     {
         return $this->connection->isAutoCommit();
     }
 
-    public function setAutoCommit($autoCommit)
+    public function setAutoCommit($autoCommit): void
     {
         $this->connection->setAutoCommit($autoCommit);
     }
 
-    public function setFetchMode($fetchMode)
+    public function fetchAssociative(string $query, array $params = [], array $types = [])
     {
-        $this->connection->setFetchMode($fetchMode);
+        return $this->connection->fetchAssociative($query, $params, $types);
     }
 
-    public function fetchAssoc($statement, array $params = [], array $types = [])
+    public function fetchNumeric(string $query, array $params = [], array $types = [])
     {
-        return $this->connection->fetchAssoc($statement, $params, $types);
+        return $this->connection->fetchNumeric($query, $params, $types);
     }
 
-    public function fetchArray($statement, array $params = [], array $types = [])
+    public function fetchOne(string $query, array $params = [], array $types = [])
     {
-        return $this->connection->fetchArray($statement, $params, $types);
+        return $this->connection->fetchOne($query, $params, $types);
     }
 
-    public function fetchColumn($statement, array $params = [], $column = 0, array $types = [])
+    public function fetchAllNumeric(string $query, array $params = [], array $types = []): array
     {
-        return $this->connection->fetchColumn($statement, $params, $column, $types);
+        return $this->connection->fetchAllNumeric($query, $params, $types);
     }
 
-    public function isConnected()
+    public function fetchAllAssociative(string $query, array $params = [], array $types = []): array
+    {
+        return $this->connection->fetchAllAssociative($query, $params, $types);
+    }
+
+    public function fetchAllKeyValue(string $query, array $params = [], array $types = []): array
+    {
+        return $this->connection->fetchAllKeyValue($query, $params, $types);
+    }
+
+    public function fetchAllAssociativeIndexed(string $query, array $params = [], array $types = []): array
+    {
+        return $this->connection->fetchAllAssociativeIndexed($query, $params, $types);
+    }
+
+    public function fetchFirstColumn(string $query, array $params = [], array $types = []): array
+    {
+        return $this->connection->fetchFirstColumn($query, $params, $types);
+    }
+
+    public function iterateNumeric(string $query, array $params = [], array $types = []): \Traversable
+    {
+        return $this->connection->iterateNumeric($query, $params, $types);
+    }
+
+    public function iterateAssociative(string $query, array $params = [], array $types = []): \Traversable
+    {
+        return $this->connection->iterateAssociative($query, $params, $types);
+    }
+
+    public function iterateKeyValue(string $query, array $params = [], array $types = []): \Traversable
+    {
+        return $this->connection->iterateKeyValue($query, $params, $types);
+    }
+
+    public function iterateAssociativeIndexed(string $query, array $params = [], array $types = []): \Traversable
+    {
+        return $this->connection->iterateAssociativeIndexed($query, $params, $types);
+    }
+
+    public function iterateColumn(string $query, array $params = [], array $types = []): \Traversable
+    {
+        return $this->connection->iterateColumn($query, $params, $types);
+    }
+
+    public function isConnected(): bool
     {
         return $this->connection->isConnected();
     }
 
-    public function isTransactionActive()
+    public function isTransactionActive(): bool
     {
         return $this->connection->isTransactionActive();
     }
 
-    public function delete($tableExpression, array $identifier, array $types = [])
+    public function delete($table, array $criteria, array $types = [])
     {
-        return $this->connection->delete($tableExpression, $identifier, $types);
+        return $this->connection->delete($table, $criteria, $types);
     }
 
-    public function close()
+    public function close(): void
     {
         $this->connection->close();
     }
@@ -191,29 +220,24 @@ abstract class AbstractConnectionDecorator extends Connection
         $this->connection->setTransactionIsolation($level);
     }
 
-    public function getTransactionIsolation()
+    public function getTransactionIsolation(): int
     {
         return $this->connection->getTransactionIsolation();
     }
 
-    public function update($tableExpression, array $data, array $identifier, array $types = [])
+    public function update($table, array $data, array $criteria, array $types = [])
     {
-        return $this->connection->update($tableExpression, $data, $identifier, $types);
+        return $this->connection->update($table, $data, $criteria, $types);
     }
 
-    public function insert($tableExpression, array $data, array $types = [])
+    public function insert($table, array $data, array $types = [])
     {
-        return $this->connection->insert($tableExpression, $data, $types);
+        return $this->connection->insert($table, $data, $types);
     }
 
-    public function quoteIdentifier($str)
+    public function quoteIdentifier($str): string
     {
         return $this->connection->quoteIdentifier($str);
-    }
-
-    public function fetchAll($sql, array $params = [], $types = [])
-    {
-        return $this->connection->fetchAll($sql, $params, $types);
     }
 
     public function executeQuery(string $sql, array $params = [], $types = [], QueryCacheProfile $qcp = null): Result
@@ -221,14 +245,14 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->executeQuery($sql, $params, $types, $qcp);
     }
 
-    public function executeCacheQuery($query, $params, $types, QueryCacheProfile $qcp)
+    public function executeCacheQuery($sql, $params, $types, QueryCacheProfile $qcp): Result
     {
-        return $this->connection->executeCacheQuery($query, $params, $types, $qcp);
+        return $this->connection->executeCacheQuery($sql, $params, $types, $qcp);
     }
 
-    public function project($query, array $params, Closure $function)
+    public function executeStatement($sql, array $params = [], array $types = [])
     {
-        return $this->connection->project($query, $params, $function);
+        return $this->connection->executeStatement($sql, $params, $types);
     }
 
     public function executeUpdate(string $sql, array $params = [], array $types = []): int
@@ -236,7 +260,7 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->executeUpdate($sql, $params, $types);
     }
 
-    public function getTransactionNestingLevel()
+    public function getTransactionNestingLevel(): int
     {
         return $this->connection->getTransactionNestingLevel();
     }
@@ -246,47 +270,57 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->transactional($func);
     }
 
-    public function setNestTransactionsWithSavepoints($nestTransactionsWithSavepoints)
+    public function setNestTransactionsWithSavepoints($nestTransactionsWithSavepoints): void
     {
         $this->connection->setNestTransactionsWithSavepoints($nestTransactionsWithSavepoints);
     }
 
-    public function getNestTransactionsWithSavepoints()
+    public function getNestTransactionsWithSavepoints(): bool
     {
         return $this->connection->getNestTransactionsWithSavepoints();
     }
 
-    public function createSavepoint($savepoint)
+    public function createSavepoint($savepoint): void
     {
         $this->connection->createSavepoint($savepoint);
     }
 
-    public function releaseSavepoint($savepoint)
+    public function releaseSavepoint($savepoint): void
     {
         $this->connection->releaseSavepoint($savepoint);
     }
 
-    public function rollbackSavepoint($savepoint)
+    public function rollbackSavepoint($savepoint): void
     {
         $this->connection->rollbackSavepoint($savepoint);
     }
 
-    public function getWrappedConnection()
+    public function getWrappedConnection(): DriverConnection
     {
         return $this->connection->getWrappedConnection();
     }
 
-    public function getSchemaManager()
+    public function getNativeConnection()
+    {
+        return $this->connection->getNativeConnection();
+    }
+
+    public function getSchemaManager(): AbstractSchemaManager
     {
         return $this->connection->getSchemaManager();
     }
 
-    public function setRollbackOnly()
+    public function createSchemaManager(): AbstractSchemaManager
+    {
+        return $this->connection->createSchemaManager();
+    }
+
+    public function setRollbackOnly(): void
     {
         $this->connection->setRollbackOnly();
     }
 
-    public function isRollbackOnly()
+    public function isRollbackOnly(): bool
     {
         return $this->connection->isRollbackOnly();
     }
@@ -301,18 +335,8 @@ abstract class AbstractConnectionDecorator extends Connection
         return $this->connection->convertToPHPValue($value, $type);
     }
 
-    public function resolveParams(array $params, array $types)
+    public function createQueryBuilder(): QueryBuilder
     {
-        return $this->connection->resolveParams($params, $types);
-    }
-
-    public function createQueryBuilder()
-    {
-        return new QueryBuilder($this);
-    }
-
-    public function ping()
-    {
-        return $this->connection->ping();
+        return $this->connection->createQueryBuilder();
     }
 }

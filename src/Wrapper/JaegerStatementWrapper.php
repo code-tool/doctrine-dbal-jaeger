@@ -36,7 +36,7 @@ class JaegerStatementWrapper extends Statement
         return $this;
     }
 
-    public function execute($params = null): Result
+    public function executeQuery(array $params = null): Result
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')
@@ -45,7 +45,27 @@ class JaegerStatementWrapper extends Statement
         try {
             return parent::execute($params);
         } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+            $span
+                ->addTag(new DbalErrorCodeTag($e->getCode()))
+                ->addTag(new ErrorTag());
+
+            throw $e;
+        } finally {
+            $this->tracer->finish($span);
+        }
+    }
+
+    public function executeStatement($params = null): int
+    {
+        $span = $this->tracer
+            ->start('dbal.prepare.execute')
+            ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
+
+        try {
+            return parent::execute($params);
+        } catch (\Exception $e) {
+            $span
+                ->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
 
             throw $e;

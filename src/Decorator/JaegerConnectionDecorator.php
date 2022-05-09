@@ -41,8 +41,6 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         }
         $span = $this->tracer
             ->start('dbal.connect')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
@@ -52,7 +50,9 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
                 ->addTag(new ErrorTag());
             throw $e;
         } finally {
-            $span->addTag(new DbType($this->getDatabasePlatform()->getName()))->finish();
+            $span
+                ->addTag(new DbType(get_class($this->getDatabasePlatform())))
+                ->finish();
         }
     }
 
@@ -60,9 +60,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
     {
         $span = $this->tracer
             ->start('dbal.prepare')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
@@ -81,9 +79,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
     {
         $span = $this->tracer
             ->start('dbal.execute')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
@@ -98,13 +94,11 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         }
     }
 
-    public function executeUpdate(string $sql, array $params = [], array $types = []): int
+    public function executeStatement($sql, array $params = [], array $types = [])
     {
         $span = $this->tracer
             ->start('dbal.execute')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
             ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
@@ -119,57 +113,11 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         }
     }
 
-    public function query(string $sql): Result
-    {
-        $span = $this->tracer
-            ->start('dbal.query')
-            ->addTag(new DbStatementTag($this->cutLongSql($sql)))
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
-        try {
-            return parent::query($sql);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
-                ->addTag(new ErrorTag());
-            throw $e;
-        } finally {
-            $span->finish();
-        }
-    }
-
-    public function exec(string $sql): int
-    {
-        $span = $this->tracer
-            ->start('dbal.exec')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
-        try {
-            $rows = parent::exec($sql);
-            $span->addTag(new DbalRowNumberTag($rows));
-
-            return $rows;
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
-                ->addTag(new ErrorTag());
-            throw $e;
-        } finally {
-            $span->finish();
-        }
-    }
-
     public function beginTransaction(): bool
     {
         $span = $this->tracer
             ->start('dbal.transaction')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             return parent::beginTransaction();
@@ -186,9 +134,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
     {
         $span = $this->tracer
             ->start('dbal.commit')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             return parent::commit();
@@ -205,9 +151,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
     {
         $span = $this->tracer
             ->start('dbal.rollback')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
+            ->addTag(new DbType(get_class($this->getDatabasePlatform())))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
         try {
             return parent::rollBack();
