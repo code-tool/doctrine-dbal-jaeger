@@ -103,7 +103,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbStatementTag($this->cutLongSql($sql)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
-            return parent::executeUpdate($sql, $params, $types);
+            return parent::executeStatement($sql, $params, $types);
         } catch (\Exception $e) {
             $span->addTag(new DbalErrorCodeTag($e->getCode()))
                 ->addTag(new ErrorTag());
