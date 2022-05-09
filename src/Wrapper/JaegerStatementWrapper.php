@@ -36,7 +36,7 @@ class JaegerStatementWrapper extends Statement
         return $this;
     }
 
-    public function executeQuery(array $params = null): Result
+    public function executeQuery(array $params = []): Result
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')
@@ -55,7 +55,7 @@ class JaegerStatementWrapper extends Statement
         }
     }
 
-    public function executeStatement($params = null): int
+    public function executeStatement(array $params = []): int
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')
