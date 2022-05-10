@@ -16,9 +16,21 @@ class JaegerStatementWrapper extends Statement
      */
     private $tracer;
 
+    /**
+     * @var int|null
+     */
+    private $maxSqlLength;
+
     public function setTracer(TracerInterface $tracer)
     {
         $this->tracer = $tracer;
+
+        return $this;
+    }
+
+    public function setMaxSqlLength(?int $maxSqlLength)
+    {
+        $this->maxSqlLength = $maxSqlLength;
 
         return $this;
     }
@@ -27,7 +39,7 @@ class JaegerStatementWrapper extends Statement
     {
         $span = $this->tracer
             ->start('dbal.prepare.execute')
-            ->addTag(new DbStatementTag($this->sql));
+            ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
 
         try {
             return parent::execute($params);
@@ -39,5 +51,14 @@ class JaegerStatementWrapper extends Statement
         } finally {
             $this->tracer->finish($span);
         }
+    }
+
+    private function cutLongSql(string $string): string
+    {
+        if (null === $this->maxSqlLength) {
+            return $string;
+        }
+
+        return substr($string, 0, $this->maxSqlLength);
     }
 }

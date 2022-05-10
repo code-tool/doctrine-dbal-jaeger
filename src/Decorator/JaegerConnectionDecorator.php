@@ -20,9 +20,15 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
 {
     private $tracer;
 
-    public function __construct(Connection $connection, TracerInterface $tracer)
+    /**
+     * @var int|null
+     */
+    private $maxSqlLength;
+
+    public function __construct(Connection $connection, TracerInterface $tracer, ?int $maxSqlLength = null)
     {
         $this->tracer = $tracer;
+        $this->maxSqlLength = $maxSqlLength;
         parent::__construct($connection);
     }
 
@@ -56,7 +62,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($prepareString))
+            ->addTag(new DbStatementTag($this->cutLongSql($prepareString)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::prepare($prepareString);
@@ -77,7 +83,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSql($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeQuery($query, $params, $types, $qcp);
@@ -98,7 +104,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
             ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($query))
+            ->addTag(new DbStatementTag($this->cutLongSql($query)))
             ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
         try {
             return parent::executeUpdate($query, $params, $types);
@@ -116,7 +122,7 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         $args = func_get_args();
         $span = $this->tracer
             ->start('dbal.query')
-            ->addTag(new DbStatementTag($args[0]))
+            ->addTag(new DbStatementTag($this->cutLongSql($args[0])))
             ->addTag(new DbInstanceTag($this->getDatabase()))
             ->addTag(new DbUser($this->getUsername()))
             ->addTag(new DbType($this->getDatabasePlatform()->getName()))
@@ -211,5 +217,14 @@ class JaegerConnectionDecorator extends AbstractConnectionDecorator
         } finally {
             $span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))->finish();
         }
+    }
+
+    private function cutLongSql(string $string): string
+    {
+        if (null === $this->maxSqlLength) {
+            return $string;
+        }
+
+        return substr($string, 0, $this->maxSqlLength);
     }
 }
