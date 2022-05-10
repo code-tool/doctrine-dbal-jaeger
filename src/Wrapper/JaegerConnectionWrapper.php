@@ -3,246 +3,143 @@ declare(strict_types=1);
 
 namespace Doctrine\DBAL\Jaeger\Wrapper;
 
-use Doctrine\DBAL\Cache\QueryCacheProfile;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Jaeger\Tag\DbalAutoCommitTag;
+use Doctrine\DBAL\Driver\Connection;
+use Doctrine\DBAL\Driver\Middleware\AbstractConnectionMiddleware;
+use Doctrine\DBAL\Driver\Result;
+use Doctrine\DBAL\Driver\Statement;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
-use Doctrine\DBAL\Jaeger\Tag\DbalNestingLevelTag;
-use Doctrine\DBAL\Jaeger\Tag\DbalRowNumberTag;
-use Jaeger\Tag\DbInstanceTag;
 use Jaeger\Tag\DbStatementTag;
-use Jaeger\Tag\DbType;
-use Jaeger\Tag\DbUser;
 use Jaeger\Tag\ErrorTag;
 use Jaeger\Tracer\TracerInterface;
 
-class JaegerConnectionWrapper extends Connection
+class JaegerConnectionWrapper extends AbstractConnectionMiddleware
 {
-    /**
-     * @var TracerInterface $tracer
-     */
-    private $tracer;
+    private TracerInterface $tracer;
 
-    /**
-     * @var int|null
-     */
-    private $maxSqlLength = null;
+    private ?int $maxSqlLength;
 
-    public function setTracer(TracerInterface $tracer)
+    public function __construct(Connection $wrappedConnection, TracerInterface $tracer, ?int $maxSqlLength = null)
     {
+        parent::__construct($wrappedConnection);
+
         $this->tracer = $tracer;
-
-        return $this;
-    }
-
-    public function setMaxSqlLength(?int $maxSqlLength)
-    {
         $this->maxSqlLength = $maxSqlLength;
-
-        return $this;
     }
 
-    public function connect()
+    public function prepare(string $sql): Statement
     {
-        if ($this->isConnected()) {
-            return false;
-        }
-        $span = $this->tracer->start('dbal.connect');
-        try {
-            return parent::connect();
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
-                ->addTag(new ErrorTag());
-            throw $e;
-        } finally {
-            if ($this->isConnected()) {
-                $span->addTag(new DbInstanceTag($this->getDatabase()))
-                    ->addTag(new DbUser($this->getUsername()))
-                    ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-                    ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()))
-                    ->addTag(new DbType($this->getDatabasePlatform()->getName()));
-            }
-            $this->tracer->finish($span);
-        }
-    }
+        $cutSql = $this->cutLongSql($sql);
 
-    public function prepare($prepareString)
-    {
         $span = $this->tracer
             ->start('dbal.prepare')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($this->cutLongSql($prepareString)))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
+            ->addTag(new DbStatementTag($cutSql));
+
         try {
-            return $this->wrappedPrepare($prepareString);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+            return new JaegerStatementWrapper(
+                parent::prepare($sql),
+                $this->tracer,
+                $sql
+            );
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
             $this->tracer->finish($span);
         }
     }
 
-    private function wrappedPrepare($sql)
+    public function query(string $sql): Result
     {
-        try {
-            $stmt = new JaegerStatementWrapper($sql, $this);
-        } catch (\Throwable $e) {
-            $this->handleExceptionDuringQuery($e, $sql);
-        }
-
-        $stmt->setFetchMode($this->defaultFetchMode);
-        $stmt->setTracer($this->tracer);
-        $stmt->setMaxSqlLength($this->maxSqlLength);
-
-        return $stmt;
-    }
-
-    public function executeQuery($query, array $params = [], $types = [], QueryCacheProfile $qcp = null)
-    {
-        $span = $this->tracer
-            ->start('dbal.execute')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($this->cutLongSql($query)))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
-        try {
-            return parent::executeQuery($query, $params, $types, $qcp);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
-                ->addTag(new ErrorTag());
-            throw $e;
-        } finally {
-            $this->tracer->finish($span);
-        }
-    }
-
-    public function executeUpdate($query, array $params = [], array $types = [])
-    {
-        $span = $this->tracer
-            ->start('dbal.execute')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbStatementTag($this->cutLongSql($query)))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
-        try {
-            return parent::executeUpdate($query, $params, $types);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
-                ->addTag(new ErrorTag());
-            throw $e;
-        } finally {
-            $this->tracer->finish($span);
-        }
-    }
-
-    public function query()
-    {
-        $args = func_get_args();
         $span = $this->tracer
             ->start('dbal.query')
-            ->addTag(new DbStatementTag($this->cutLongSql($args[0])))
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
+            ->addTag(new DbStatementTag($this->cutLongSql($sql)));
+
         try {
-            return parent::query(...$args);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+            return parent::query($sql);
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
             $this->tracer->finish($span);
         }
     }
 
-    public function exec($statement)
+    public function exec(string $sql): int
     {
         $span = $this->tracer
             ->start('dbal.exec')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()))
-            ->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel()));
-        try {
-            $rows = parent::exec($statement);
-            $span->addTag(new DbalRowNumberTag($rows));
+            ->addTag(new DbStatementTag($this->cutLongSql($sql)));
 
-            return $rows;
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+        try {
+            return parent::exec($sql);
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
             $this->tracer->finish($span);
         }
     }
 
-    public function beginTransaction()
+    public function beginTransaction(): bool
     {
         $span = $this->tracer
-            ->start('dbal.transaction')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
+            ->start('dbal.transaction');
+
         try {
-            parent::beginTransaction();
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+            return parent::beginTransaction();
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $this->tracer->finish($span);
         }
     }
 
-    public function commit()
+    public function commit(): bool
     {
         $span = $this->tracer
-            ->start('dbal.commit')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
+            ->start('dbal.commit');
+
         try {
-            parent::commit();
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+            return parent::commit();
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $this->tracer->finish($span);
         }
     }
 
-    public function rollBack()
+    public function rollBack(): bool
     {
         $span = $this->tracer
-            ->start('dbal.rollback')
-            ->addTag(new DbInstanceTag($this->getDatabase()))
-            ->addTag(new DbUser($this->getUsername()))
-            ->addTag(new DbType($this->getDatabasePlatform()->getName()))
-            ->addTag(new DbalAutoCommitTag($this->isAutoCommit()));
+            ->start('dbal.rollback');
+
         try {
             return parent::rollBack();
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
-            throw $e;
+
+            throw $t;
         } finally {
-            $this->tracer->finish($span->addTag(new DbalNestingLevelTag($this->getTransactionNestingLevel())));
+            $this->tracer->finish($span);
         }
     }
 
@@ -252,6 +149,6 @@ class JaegerConnectionWrapper extends Connection
             return $string;
         }
 
-        return substr($string, 0, $this->maxSqlLength);
+        return \substr($string, 0, $this->maxSqlLength);
     }
 }

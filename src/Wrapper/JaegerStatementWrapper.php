@@ -3,62 +3,44 @@ declare(strict_types=1);
 
 namespace Doctrine\DBAL\Jaeger\Wrapper;
 
+use Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware;
+use Doctrine\DBAL\Driver\Result;
+use Doctrine\DBAL\Driver\Statement;
 use Doctrine\DBAL\Jaeger\Tag\DbalErrorCodeTag;
-use Doctrine\DBAL\Statement;
 use Jaeger\Tag\DbStatementTag;
 use Jaeger\Tag\ErrorTag;
 use Jaeger\Tracer\TracerInterface;
 
-class JaegerStatementWrapper extends Statement
+class JaegerStatementWrapper extends AbstractStatementMiddleware
 {
-    /**
-     * @var TracerInterface $tracer
-     */
-    private $tracer;
+    private TracerInterface $tracer;
 
-    /**
-     * @var int|null
-     */
-    private $maxSqlLength;
+    private string $sql;
 
-    public function setTracer(TracerInterface $tracer)
+    public function __construct(Statement $wrappedStatement, TracerInterface $tracer, string $sql)
     {
+        parent::__construct($wrappedStatement);
+
         $this->tracer = $tracer;
-
-        return $this;
+        $this->sql = $sql;
     }
 
-    public function setMaxSqlLength(?int $maxSqlLength)
-    {
-        $this->maxSqlLength = $maxSqlLength;
-
-        return $this;
-    }
-
-    public function execute($params = null)
+    public function execute($params = null): Result
     {
         $span = $this->tracer
-            ->start('dbal.prepare.execute')
-            ->addTag(new DbStatementTag($this->cutLongSql($this->sql)));
+            ->start('dbal.stmt.execute')
+            ->addTag(new DbStatementTag($this->sql));
 
         try {
             return parent::execute($params);
-        } catch (\Exception $e) {
-            $span->addTag(new DbalErrorCodeTag($e->getCode()))
+        } catch (\Throwable $t) {
+            $span
+                ->addTag(new DbalErrorCodeTag($t->getCode()))
                 ->addTag(new ErrorTag());
 
-            throw $e;
+            throw $t;
         } finally {
             $this->tracer->finish($span);
         }
-    }
-
-    private function cutLongSql(string $string): string
-    {
-        if (null === $this->maxSqlLength) {
-            return $string;
-        }
-
-        return substr($string, 0, $this->maxSqlLength);
     }
 }
