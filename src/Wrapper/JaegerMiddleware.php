@@ -9,14 +9,10 @@ use Jaeger\Tracer\TracerInterface;
 
 class JaegerMiddleware implements Middleware
 {
-    private TracerInterface $tracer;
-
-    private ?int $maxSqlLength;
-
-    public function __construct(TracerInterface $tracer, ?int $maxSqlLength = null)
-    {
-        $this->tracer = $tracer;
-        $this->maxSqlLength = $maxSqlLength;
+    public function __construct(
+        private readonly TracerInterface $tracer,
+        private readonly ?int $maxSqlLength = null
+    ) {
     }
 
     public function wrap(Driver $driver): Driver

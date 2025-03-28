@@ -14,16 +14,12 @@ use Jaeger\Tracer\TracerInterface;
 
 class JaegerConnectionWrapper extends AbstractConnectionMiddleware
 {
-    private TracerInterface $tracer;
-
-    private ?int $maxSqlLength;
-
-    public function __construct(Connection $wrappedConnection, TracerInterface $tracer, ?int $maxSqlLength = null)
-    {
+    public function __construct(
+        Connection $wrappedConnection,
+        private readonly TracerInterface $tracer,
+        private readonly ?int $maxSqlLength = null
+    ) {
         parent::__construct($wrappedConnection);
-
-        $this->tracer = $tracer;
-        $this->maxSqlLength = $maxSqlLength;
     }
 
     public function prepare(string $sql): Statement
@@ -89,13 +85,13 @@ class JaegerConnectionWrapper extends AbstractConnectionMiddleware
         }
     }
 
-    public function beginTransaction(): bool
+    public function beginTransaction(): void
     {
         $span = $this->tracer
             ->start('dbal.transaction');
 
         try {
-            return parent::beginTransaction();
+            parent::beginTransaction();
         } catch (\Throwable $t) {
             $span
                 ->addTag(new DbalErrorCodeTag($t->getCode()))
@@ -107,13 +103,13 @@ class JaegerConnectionWrapper extends AbstractConnectionMiddleware
         }
     }
 
-    public function commit(): bool
+    public function commit(): void
     {
         $span = $this->tracer
             ->start('dbal.commit');
 
         try {
-            return parent::commit();
+            parent::commit();
         } catch (\Throwable $t) {
             $span
                 ->addTag(new DbalErrorCodeTag($t->getCode()))
@@ -125,13 +121,13 @@ class JaegerConnectionWrapper extends AbstractConnectionMiddleware
         }
     }
 
-    public function rollBack(): bool
+    public function rollBack(): void
     {
         $span = $this->tracer
             ->start('dbal.rollback');
 
         try {
-            return parent::rollBack();
+            parent::rollBack();
         } catch (\Throwable $t) {
             $span
                 ->addTag(new DbalErrorCodeTag($t->getCode()))

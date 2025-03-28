@@ -13,26 +13,22 @@ use Jaeger\Tracer\TracerInterface;
 
 class JaegerStatementWrapper extends AbstractStatementMiddleware
 {
-    private TracerInterface $tracer;
-
-    private string $sql;
-
-    public function __construct(Statement $wrappedStatement, TracerInterface $tracer, string $sql)
-    {
+    public function __construct(
+        Statement $wrappedStatement,
+        private readonly TracerInterface $tracer,
+        private readonly string $sql
+    ) {
         parent::__construct($wrappedStatement);
-
-        $this->tracer = $tracer;
-        $this->sql = $sql;
     }
 
-    public function execute($params = null): Result
+    public function execute(): Result
     {
         $span = $this->tracer
             ->start('dbal.stmt.execute')
             ->addTag(new DbStatementTag($this->sql));
 
         try {
-            return parent::execute($params);
+            return parent::execute();
         } catch (\Throwable $t) {
             $span
                 ->addTag(new DbalErrorCodeTag($t->getCode()))

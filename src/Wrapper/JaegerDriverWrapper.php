@@ -13,16 +13,12 @@ use Jaeger\Tracer\TracerInterface;
 
 class JaegerDriverWrapper extends AbstractDriverMiddleware
 {
-    private TracerInterface $tracer;
-
-    private ?int $maxSqlLength;
-
-    public function __construct(Driver $wrappedDriver, TracerInterface $tracer, ?int $maxSqlLength = null)
-    {
+    public function __construct(
+        private readonly Driver $wrappedDriver,
+        private readonly TracerInterface $tracer,
+        private readonly ?int $maxSqlLength = null
+    ) {
         parent::__construct($wrappedDriver);
-
-        $this->tracer = $tracer;
-        $this->maxSqlLength = $maxSqlLength;
     }
 
     public function connect(array $params): DriverConnection
@@ -42,7 +38,7 @@ class JaegerDriverWrapper extends AbstractDriverMiddleware
 
             throw $t;
         } finally {
-            $span->addTag(new DbType(\get_class($this->getDatabasePlatform())));
+            $span->addTag(new DbType($this->wrappedDriver::class));
 
             $this->tracer->finish($span);
         }
